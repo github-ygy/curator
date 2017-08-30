@@ -134,12 +134,14 @@ public class NodeCache implements Closeable
     }
 
     /**
-     * @param client curztor client
-     * @param path the full path to the node to cache
-     * @param dataIsCompressed if true, data in the path is compressed
+     * @param client curztor client   客户端   默认为 CuratorFrameworkImpl
+     * @param path the full path to the node to cache    节点路径
+     * @param dataIsCompressed if true, data in the path is compressed   是否压缩
      */
     public NodeCache(CuratorFramework client, String path, boolean dataIsCompressed)
     {
+        //Remove all outstanding watchers that have been set
+        //可以一次性删除一切已经被创建的watcher
         this.client = client.newWatcherRemoveCuratorFramework();
         this.path = PathUtils.validatePath(path);
         this.dataIsCompressed = dataIsCompressed;
