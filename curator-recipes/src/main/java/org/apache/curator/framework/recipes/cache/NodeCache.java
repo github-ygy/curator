@@ -140,7 +140,7 @@ public class NodeCache implements Closeable
      */
     public NodeCache(CuratorFramework client, String path, boolean dataIsCompressed)
     {
-        this.client = client.newWatcherRemoveCuratorFramework();
+        this.client = client.newWatcherRemoveCuratorFramework();  //watch管理
         this.path = PathUtils.validatePath(path);
         this.dataIsCompressed = dataIsCompressed;
     }
@@ -169,8 +169,10 @@ public class NodeCache implements Closeable
      */
     public void     start(boolean buildInitial) throws Exception
     {
+        //修改状态
         Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Cannot be started more than once");
 
+        //添加默认listener
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
         if ( buildInitial )
