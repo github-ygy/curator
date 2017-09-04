@@ -87,7 +87,7 @@ public class ZKPaths
      * @return adjusted path
      */
     public static String fixForNamespace(String namespace, String path)
-    {
+    {   //校验path 后 将namespace + path 结合为新path
         return fixForNamespace(namespace, path, false);
     }
 
