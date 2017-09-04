@@ -129,13 +129,14 @@ public class LeaderSelector implements Closeable
     }
 
     /**
-     * @param client          the client
-     * @param leaderPath      the path for this leadership group
-     * @param executorService thread pool to use
-     * @param listener        listener
+     * @param client          the client   客户端
+     * @param leaderPath      the path for this leadership group   节点路径
+     * @param executorService thread pool to use  线程池/默认线程池为守护线程
+     * @param listener        listener   LeaderSelectorListener 监听器
      */
     public LeaderSelector(CuratorFramework client, String leaderPath, CloseableExecutorService executorService, LeaderSelectorListener listener)
     {
+        //参数校验
         Preconditions.checkNotNull(client, "client cannot be null");
         PathUtils.validatePath(leaderPath);
         Preconditions.checkNotNull(listener, "listener cannot be null");
@@ -145,7 +146,7 @@ public class LeaderSelector implements Closeable
         hasLeadership = false;
 
         this.executorService = executorService;
-        mutex = new InterProcessMutex(client, leaderPath)
+        mutex = new InterProcessMutex(client, leaderPath)  //zookeeper 维护的锁
         {
             @Override
             protected byte[] getLockNodeBytes()
@@ -174,7 +175,7 @@ public class LeaderSelector implements Closeable
      */
     public void autoRequeue()
     {
-        autoRequeue.set(true);
+        autoRequeue.set(true);   //设置自动重新排队
     }
 
     /**
