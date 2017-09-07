@@ -97,13 +97,13 @@ public class LockInternals
 
     LockInternals(CuratorFramework client, LockInternalsDriver driver, String path, String lockName, int maxLeases)
     {
-        this.driver = driver;
-        this.lockName = lockName;
+        this.driver = driver;   //内部锁驱动
+        this.lockName = lockName;  //锁名
         this.maxLeases = maxLeases;
 
-        this.client = client.newWatcherRemoveCuratorFramework();
-        this.basePath = PathUtils.validatePath(path);
-        this.path = ZKPaths.makePath(path, lockName);
+        this.client = client.newWatcherRemoveCuratorFramework();  //curatorframeworkImpl 子类
+        this.basePath = PathUtils.validatePath(path);  //path
+        this.path = ZKPaths.makePath(path, lockName);  //   /path/lockName
     }
 
     synchronized void setMaxLeases(int maxLeases)
@@ -149,7 +149,7 @@ public class LockInternals
 
     public static List<String> getSortedChildren(CuratorFramework client, String basePath, final String lockName, final LockInternalsSorter sorter) throws Exception
     {
-        List<String> children = client.getChildren().forPath(basePath);
+        List<String> children = client.getChildren().forPath(basePath); //path 路径
         List<String> sortedList = Lists.newArrayList(children);
         Collections.sort
         (
@@ -159,6 +159,8 @@ public class LockInternals
                 @Override
                 public int compare(String lhs, String rhs)
                 {
+                    //str ： uuid - lock - sequence  //lockname ： lock
+                    //return 回来为sequence 进行排序
                     return sorter.fixForSorting(lhs, lockName).compareTo(sorter.fixForSorting(rhs, lockName));
                 }
             }
@@ -201,7 +203,7 @@ public class LockInternals
 
     String attemptLock(long time, TimeUnit unit, byte[] lockNodeBytes) throws Exception
     {
-        final long      startMillis = System.currentTimeMillis();
+        final long      startMillis = System.currentTimeMillis();  //记录开始时间，计算需要等待的时间
         final Long      millisToWait = (unit != null) ? unit.toMillis(time) : null;
         final byte[]    localLockNodeBytes = (revocable.get() != null) ? new byte[0] : lockNodeBytes;
         int             retryCount = 0;
@@ -214,7 +216,11 @@ public class LockInternals
             isDone = true;
 
             try
-            {
+            {       //path 为传入path/lockname
+                   //driver 默认为 StandardLockInternalsDriver
+                   //构建锁的节点，节点createModel为 EPHEMERAL_SEQUENTIAL
+                  //our path : 创建protect的节点  /path/uuid - localname - sequence
+                 // 只有相应uuid的节点才能修改此节点的信息
                 ourPath = driver.createsTheLock(client, path, localLockNodeBytes);
                 hasTheLock = internalLockLoop(startMillis, millisToWait, ourPath);
             }
@@ -274,9 +280,15 @@ public class LockInternals
 
             while ( (client.getState() == CuratorFrameworkState.STARTED) && !haveTheLock )
             {
+                // uuid - localname - sequence
+                // ourPath ：/path/uuid - localname - sequence
+                //basePath ： /path
+                //return 回来为 按照sequence 进行排序
                 List<String>        children = getSortedChildren();
+                //sequenceNodeName ： uuid - localname - sequence
                 String              sequenceNodeName = ourPath.substring(basePath.length() + 1); // +1 to include the slash
 
+                //获取 getsTheLock:是否获取锁   pathToWatch:获取锁的 sequenceNode
                 PredicateResults    predicateResults = driver.getsTheLock(client, children, sequenceNodeName, maxLeases);
                 if ( predicateResults.getsTheLock() )
                 {
@@ -284,6 +296,7 @@ public class LockInternals
                 }
                 else
                 {
+                    //  获取锁的path
                     String  previousSequencePath = basePath + "/" + predicateResults.getPathToWatch();
 
                     synchronized(this)
@@ -291,21 +304,25 @@ public class LockInternals
                         try 
                         {
                             // use getData() instead of exists() to avoid leaving unneeded watchers which is a type of resource leak
+                            // 如果该节点变化，则使用watch
+                            //notifyFromWatcher  唤醒所有的children，重新竞争
                             client.getData().usingWatcher(watcher).forPath(previousSequencePath);
                             if ( millisToWait != null )
                             {
                                 millisToWait -= (System.currentTimeMillis() - startMillis);
                                 startMillis = System.currentTimeMillis();
+                                //时间超时，删除节点，不竞争下次锁
                                 if ( millisToWait <= 0 )
                                 {
                                     doDelete = true;    // timed out - delete our node
                                     break;
                                 }
 
-                                wait(millisToWait);
+                                wait(millisToWait);  //睡眠相应的时间
                             }
                             else
                             {
+                                //睡眠
                                 wait();
                             }
                         }
@@ -325,6 +342,7 @@ public class LockInternals
         }
         finally
         {
+            //出现异常或者超时，删除此节点
             if ( doDelete )
             {
                 deleteOurPath(ourPath);

@@ -34,6 +34,7 @@ import org.apache.curator.utils.PathUtils;
  * A re-entrant mutex that works across JVMs. Uses Zookeeper to hold the lock. All processes in all JVMs that
  * use the same lock path will achieve an inter-process critical section. Further, this mutex is
  * "fair" - each user will get the mutex in the order requested (from ZK's point of view)
+ * 线程间的互斥
  */
 public class InterProcessMutex implements InterProcessLock, Revocable<InterProcessMutex>
 {
@@ -69,7 +70,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
     /**
      * @param client client
      * @param path   the path to lock
-     * @param driver lock driver
+     * @param driver lock driver  默认StandardLockInternalsDriver
      */
     public InterProcessMutex(CuratorFramework client, String path, LockInternalsDriver driver)
     {
@@ -85,7 +86,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
      */
     @Override
     public void acquire() throws Exception
-    {
+    {   //获取互斥锁，直到获取为止
         if ( !internalLock(-1, null) )
         {
             throw new IOException("Lost connection while trying to acquire lock: " + basePath);
@@ -140,7 +141,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
             throw new IllegalMonitorStateException("You do not own the lock: " + basePath);
         }
 
-        int newLockCount = lockData.lockCount.decrementAndGet();
+        int newLockCount = lockData.lockCount.decrementAndGet();  //如果多次锁入，则需要多次释放
         if ( newLockCount > 0 )
         {
             return;
@@ -151,6 +152,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
         }
         try
         {
+            //为0时，释放
             internals.releaseLock(lockData.lockPath);
         }
         finally
@@ -192,7 +194,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
     InterProcessMutex(CuratorFramework client, String path, String lockName, int maxLeases, LockInternalsDriver driver)
     {
         basePath = PathUtils.validatePath(path);
-        internals = new LockInternals(client, driver, path, lockName, maxLeases);
+        internals = new LockInternals(client, driver, path, lockName, maxLeases);  //构建内部锁
     }
 
     /**
@@ -222,18 +224,19 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
         /*
            Note on concurrency: a given lockData instance
            can be only acted on by a single thread so locking isn't necessary
+           一个给定的lockdata实例的并发只能由单个线程执行，因此不需要锁定
         */
 
         Thread currentThread = Thread.currentThread();
 
         LockData lockData = threadData.get(currentThread);
-        if ( lockData != null )
+        if ( lockData != null )   //如果lockdata 不为null，则已经是获取了zookeeper锁
         {
             // re-entering
-            lockData.lockCount.incrementAndGet();
+            lockData.lockCount.incrementAndGet();   //获取锁计数+1
             return true;
         }
-
+        //尝试获取锁 LockInternals    getLockNodeBytes // 默认为null 的实现
         String lockPath = internals.attemptLock(time, unit, getLockNodeBytes());
         if ( lockPath != null )
         {

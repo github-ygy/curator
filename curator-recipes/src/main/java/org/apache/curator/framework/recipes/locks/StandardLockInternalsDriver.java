@@ -45,6 +45,7 @@ public class StandardLockInternalsDriver implements LockInternalsDriver
     public String createsTheLock(CuratorFramework client, String path, byte[] lockNodeBytes) throws Exception
     {
         String ourPath;
+        //our path  ：          /parent/uuid - children - sequence
         if ( lockNodeBytes != null )
         {
             ourPath = client.create().creatingParentContainersIfNeeded().withProtection().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(path, lockNodeBytes);
@@ -62,10 +63,10 @@ public class StandardLockInternalsDriver implements LockInternalsDriver
     {
         return standardFixForSorting(str, lockName);
     }
-
+    //返回sequence
     public static String standardFixForSorting(String str, String lockName)
     {
-        int index = str.lastIndexOf(lockName);
+        int index = str.lastIndexOf(lockName);  //str ： uuid - lock - sequence  //lockname ： lock
         if ( index >= 0 )
         {
             index += lockName.length();
