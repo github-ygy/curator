@@ -215,8 +215,8 @@ public class LeaderSelector implements Closeable
         Preconditions.checkState(!executorService.isShutdown(), "Already started");
         Preconditions.checkState(!hasLeadership, "Already has leadership");
 
-        client.getConnectionStateListenable().addListener(listener);
-        requeue();
+        client.getConnectionStateListenable().addListener(listener);  //监听连接状态改变
+        requeue();   //重新排队
     }
 
     /**
@@ -232,11 +232,13 @@ public class LeaderSelector implements Closeable
         return internalRequeue();
     }
 
+    //同一个leaderSelect保证只有一个竞争
     private synchronized boolean internalRequeue()
     {
         if ( !isQueued && (state.get() == State.STARTED) )
         {
             isQueued = true;
+            //future返回空参，异步
             Future<Void> task = executorService.submit(new Callable<Void>()
             {
                 @Override
@@ -249,7 +251,7 @@ public class LeaderSelector implements Closeable
                     finally
                     {
                         clearIsQueued();
-                        if ( autoRequeue.get() )
+                        if ( autoRequeue.get() )  //开启自动重新排队，会一直竞争leader
                         {
                             internalRequeue();
                         }
