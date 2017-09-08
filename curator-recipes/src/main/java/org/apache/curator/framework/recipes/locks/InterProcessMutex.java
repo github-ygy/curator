@@ -47,7 +47,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
     {
         final Thread owningThread;
         final String lockPath;
-        final AtomicInteger lockCount = new AtomicInteger(1);
+        final AtomicInteger lockCount = new AtomicInteger(1);  //控制次数
 
         private LockData(Thread owningThread, String lockPath)
         {
@@ -152,7 +152,7 @@ public class InterProcessMutex implements InterProcessLock, Revocable<InterProce
         }
         try
         {
-            //为0时，释放
+            //为0时，释放  删除path节点就ok了
             internals.releaseLock(lockData.lockPath);
         }
         finally
